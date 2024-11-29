@@ -1,0 +1,25 @@
+--show all result
+SELECT TimeStamp
+    , ComponentID
+    , ColumnName
+    , ColumnLabel
+    , MinNumericData
+FROM Orion.APM.DynamicEvidenceChart AS [stats]
+WHERE [stats].ComponentID = 155 
+
+
+SELECT TimeStamp
+    , ComponentID
+    , ColumnName
+    , ColumnLabel
+    , MinNumericData
+FROM Orion.APM.DynamicEvidenceChart AS [stats]
+WHERE [stats].ComponentID = 155 AND ([stats].ColumnName like 'Failedjobs')
+
+SELECT TimeStamp
+    , ComponentID
+    , ColumnName
+    , ColumnLabel
+    , MinNumericData
+FROM Orion.APM.DynamicEvidenceChart AS [stats]
+WHERE [stats].ComponentID = 155 AND ([stats].ColumnName like 'Successfulljobs')

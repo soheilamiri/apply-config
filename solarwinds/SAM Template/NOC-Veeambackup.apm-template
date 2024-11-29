@@ -1,0 +1,873 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ArrayOfApplicationTemplate xmlns:i="http://www.w3.org/2001/XMLSchema-instance" xmlns="http://schemas.solarwinds.com/2007/08/APM">
+	<ApplicationTemplate>
+		<Settings xmlns:s="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+			<s:KeyValueOfstringSettingValueyR_SGpLPx>
+				<s:Key>__DebugLoggingEnabled</s:Key>
+				<s:Value>
+					<Required>true</Required>
+					<SettingLevel>Template</SettingLevel>
+					<Value>False</Value>
+					<ValueType>Boolean</ValueType>
+					<Key i:nil="true" />
+				</s:Value>
+			</s:KeyValueOfstringSettingValueyR_SGpLPx>
+			<s:KeyValueOfstringSettingValueyR_SGpLPx>
+				<s:Key>__NumberOfLogFilesToKeep</s:Key>
+				<s:Value>
+					<Required>true</Required>
+					<SettingLevel>Template</SettingLevel>
+					<Value>30</Value>
+					<ValueType>Integer</ValueType>
+					<Key i:nil="true" />
+				</s:Value>
+			</s:KeyValueOfstringSettingValueyR_SGpLPx>
+			<s:KeyValueOfstringSettingValueyR_SGpLPx>
+				<s:Key>__Timeout</s:Key>
+				<s:Value>
+					<Required>true</Required>
+					<SettingLevel>Template</SettingLevel>
+					<Value>300</Value>
+					<ValueType>Integer</ValueType>
+					<Key i:nil="true" />
+				</s:Value>
+			</s:KeyValueOfstringSettingValueyR_SGpLPx>
+			<s:KeyValueOfstringSettingValueyR_SGpLPx>
+				<s:Key>__Use64Bit</s:Key>
+				<s:Value>
+					<Required>true</Required>
+					<SettingLevel>Template</SettingLevel>
+					<Value>True</Value>
+					<ValueType>Boolean</ValueType>
+					<Key i:nil="true" />
+				</s:Value>
+			</s:KeyValueOfstringSettingValueyR_SGpLPx>
+		</Settings>
+		<ComponentTemplates>
+			<ComponentTemplate>
+				<ComponentOrder>1</ComponentOrder>
+				<Id>4858</Id>
+				<Name>Veeam Service Monitor</Name>
+				<Settings xmlns:s="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>__Disabled</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>False</Value>
+							<ValueType>Boolean</ValueType>
+							<Key>__Disabled</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>__UserDescription</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value></Value>
+							<ValueType>String</ValueType>
+							<Key>__UserDescription</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>__UserNotes</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value></Value>
+							<ValueType>String</ValueType>
+							<Key>__UserNotes</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>ScriptArguments</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value></Value>
+							<ValueType>String</ValueType>
+							<Key>ScriptArguments</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>__CredentialSetId</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>0</Value>
+							<ValueType>String</ValueType>
+							<Key>__CredentialSetId</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>ScriptBody</s:Key>
+						<s:Value>
+							<Required>true</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>$remotehosts="172.15.1.11"
+#in nested remoting use username as an example below
+$username = "ENT-BACKUP-1\USERNAME"
+$password = "PASSWORD" | ConvertTo-SecureString -AsPlainText -Force
+$pathdata = "E:\PWSH_script\temp_veeamservicestatus.csv"
+#Region Define Exite code
+$ExitCode=@{
+    Up=0
+    Down=1
+    Warning=2
+    Critical=3
+    Unknown=4
+}
+
+# Create a PSCredential object using the username and password
+$credential = New-Object System.Management.Automation.PSCredential ($username, $password)
+
+#prepare Deployer configuration
+#set-Item WSMan:\localhost\Client\TrustedHosts -Value $remotehosts -force
+$remotsession=New-PSSession -ComputerName $remotehosts -Credential $credential -Name rtunnel
+Invoke-Command -Session $remotsession -ScriptBlock {
+Get-Service | Where-Object {$_.name -like "*veeam*"}
+} |  ForEach-Object {
+
+    # Extract the service name and status
+    $Service = $_
+    switch ($Service.Status) 
+     { 
+     "Running" { $stat1=0 } 
+     "stopped" { $stat1=1 } 
+     "unknown" { $stat1=2 } 
+     default { $stat1=3 }
+     }
+         # Display the service name and status with clear formatting
+    if ($Service.Status -eq "running") {
+        $status = "Running"
+        Write-Host "Message.RunningService: $($Service.Name)" -ForegroundColor Green
+        Write-Host "Statistic.RunningService: $stat1"
+     
+    }
+    else {
+        $status = "Stopped"
+        Write-Host "Message.StoppedService: $($Service.Name)" -ForegroundColor Green
+        Write-Host "Statistic.StoppedService: $stat1"
+        }
+}
+exit $ExitCode[$Status];</Value>
+							<ValueType>External</ValueType>
+							<Key>ScriptBody</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>WrmPort</s:Key>
+						<s:Value>
+							<Required>true</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>5985</Value>
+							<ValueType>Integer</ValueType>
+							<Key>WrmPort</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>ImpersonateForLocalMode</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>false</Value>
+							<ValueType>Boolean</ValueType>
+							<Key>ImpersonateForLocalMode</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>WrmUseSSL</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>false</Value>
+							<ValueType>Boolean</ValueType>
+							<Key>WrmUseSSL</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>CountAsDifference</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>false</Value>
+							<ValueType>Boolean</ValueType>
+							<Key>CountAsDifference</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>ExecutionMode</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>LocalHost</Value>
+							<ValueType>Option</ValueType>
+							<Key>ExecutionMode</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>StatusRollupType</s:Key>
+						<s:Value>
+							<Required>true</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>Worst</Value>
+							<ValueType>Option</ValueType>
+							<Key>StatusRollupType</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>WrmUrlPrefix</s:Key>
+						<s:Value>
+							<Required>true</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>wsman</Value>
+							<ValueType>String</ValueType>
+							<Key>WrmUrlPrefix</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+				</Settings>
+				<Type>PowerShell</Type>
+				<Thresholds />
+				<EvidenceType>None</EvidenceType>
+				<CategoryDisplayName></CategoryDisplayName>
+				<ComponentCategoryId i:nil="true" />
+				<DynamicColumnSettings>
+					<DynamicEvidenceColumnSchema>
+						<Cells />
+						<ComponentID>-1</ComponentID>
+						<ComponentTemplateID>4858</ComponentTemplateID>
+						<DataTransform />
+						<DataTransformOverridden>false</DataTransformOverridden>
+						<Disabled>false</Disabled>
+						<ID>3196</ID>
+						<Label>Running Service</Label>
+						<LabelOverridden>false</LabelOverridden>
+						<Name>RunningService</Name>
+						<ParentID>-1</ParentID>
+						<Threshold>
+							<AreHigherValuesBetter>false</AreHigherValuesBetter>
+							<BaselineApplyError></BaselineApplyError>
+							<ComputeBaseline>true</ComputeBaseline>
+							<CriticalFormula></CriticalFormula>
+							<CriticalLevel>1.7976931348623157E+308</CriticalLevel>
+							<CriticalPolls>1</CriticalPolls>
+							<CriticalPollsInterval>1</CriticalPollsInterval>
+							<IsForParentComponent>false</IsForParentComponent>
+							<IsForTemplate>false</IsForTemplate>
+							<MaxValue>100</MaxValue>
+							<Name></Name>
+							<WarnLevel>1.7976931348623157E+308</WarnLevel>
+							<WarningFormula></WarningFormula>
+							<WarningPolls>1</WarningPolls>
+							<WarningPollsInterval>1</WarningPollsInterval>
+							<ThresholdOperator>Greater</ThresholdOperator>
+						</Threshold>
+						<ThresholdOverridden>false</ThresholdOverridden>
+						<Type>String</Type>
+					</DynamicEvidenceColumnSchema>
+					<DynamicEvidenceColumnSchema>
+						<Cells />
+						<ComponentID>-1</ComponentID>
+						<ComponentTemplateID>4858</ComponentTemplateID>
+						<DataTransform>
+							<CommonFormulaOptions>0</CommonFormulaOptions>
+							<TransformExpression></TransformExpression>
+						</DataTransform>
+						<DataTransformOverridden>false</DataTransformOverridden>
+						<Disabled>false</Disabled>
+						<ID>3197</ID>
+						<Label>Running Service</Label>
+						<LabelOverridden>false</LabelOverridden>
+						<Name>RunningService</Name>
+						<ParentID>-1</ParentID>
+						<Threshold>
+							<AreHigherValuesBetter>false</AreHigherValuesBetter>
+							<BaselineApplyError></BaselineApplyError>
+							<ComputeBaseline>true</ComputeBaseline>
+							<CriticalFormula></CriticalFormula>
+							<CriticalLevel>1.7976931348623157E+308</CriticalLevel>
+							<CriticalPolls>1</CriticalPolls>
+							<CriticalPollsInterval>1</CriticalPollsInterval>
+							<IsForParentComponent>false</IsForParentComponent>
+							<IsForTemplate>false</IsForTemplate>
+							<MaxValue>100</MaxValue>
+							<Name></Name>
+							<WarnLevel>1.7976931348623157E+308</WarnLevel>
+							<WarningFormula></WarningFormula>
+							<WarningPolls>1</WarningPolls>
+							<WarningPollsInterval>1</WarningPollsInterval>
+							<ThresholdOperator>Greater</ThresholdOperator>
+						</Threshold>
+						<ThresholdOverridden>false</ThresholdOverridden>
+						<Type>Numeric</Type>
+					</DynamicEvidenceColumnSchema>
+					<DynamicEvidenceColumnSchema>
+						<Cells />
+						<ComponentID>-1</ComponentID>
+						<ComponentTemplateID>4858</ComponentTemplateID>
+						<DataTransform />
+						<DataTransformOverridden>false</DataTransformOverridden>
+						<Disabled>false</Disabled>
+						<ID>3198</ID>
+						<Label>Stopped Service</Label>
+						<LabelOverridden>false</LabelOverridden>
+						<Name>StoppedService</Name>
+						<ParentID>-1</ParentID>
+						<Threshold>
+							<AreHigherValuesBetter>false</AreHigherValuesBetter>
+							<BaselineApplyError></BaselineApplyError>
+							<ComputeBaseline>true</ComputeBaseline>
+							<CriticalFormula></CriticalFormula>
+							<CriticalLevel>1.7976931348623157E+308</CriticalLevel>
+							<CriticalPolls>1</CriticalPolls>
+							<CriticalPollsInterval>1</CriticalPollsInterval>
+							<IsForParentComponent>false</IsForParentComponent>
+							<IsForTemplate>false</IsForTemplate>
+							<MaxValue>100</MaxValue>
+							<Name></Name>
+							<WarnLevel>1.7976931348623157E+308</WarnLevel>
+							<WarningFormula></WarningFormula>
+							<WarningPolls>1</WarningPolls>
+							<WarningPollsInterval>1</WarningPollsInterval>
+							<ThresholdOperator>Greater</ThresholdOperator>
+						</Threshold>
+						<ThresholdOverridden>false</ThresholdOverridden>
+						<Type>String</Type>
+					</DynamicEvidenceColumnSchema>
+					<DynamicEvidenceColumnSchema>
+						<Cells />
+						<ComponentID>-1</ComponentID>
+						<ComponentTemplateID>4858</ComponentTemplateID>
+						<DataTransform>
+							<CommonFormulaOptions>0</CommonFormulaOptions>
+							<TransformExpression></TransformExpression>
+						</DataTransform>
+						<DataTransformOverridden>false</DataTransformOverridden>
+						<Disabled>false</Disabled>
+						<ID>3199</ID>
+						<Label>Stopped Service</Label>
+						<LabelOverridden>false</LabelOverridden>
+						<Name>StoppedService</Name>
+						<ParentID>-1</ParentID>
+						<Threshold>
+							<AreHigherValuesBetter>false</AreHigherValuesBetter>
+							<BaselineApplyError></BaselineApplyError>
+							<ComputeBaseline>true</ComputeBaseline>
+							<CriticalFormula></CriticalFormula>
+							<CriticalLevel>2</CriticalLevel>
+							<CriticalPolls>1</CriticalPolls>
+							<CriticalPollsInterval>1</CriticalPollsInterval>
+							<IsForParentComponent>false</IsForParentComponent>
+							<IsForTemplate>false</IsForTemplate>
+							<MaxValue>100</MaxValue>
+							<Name></Name>
+							<WarnLevel>1</WarnLevel>
+							<WarningFormula></WarningFormula>
+							<WarningPolls>1</WarningPolls>
+							<WarningPollsInterval>1</WarningPollsInterval>
+							<ThresholdOperator>Greater</ThresholdOperator>
+						</Threshold>
+						<ThresholdOverridden>false</ThresholdOverridden>
+						<Type>Numeric</Type>
+					</DynamicEvidenceColumnSchema>
+				</DynamicColumnSettings>
+				<VisibilityMode>Visible</VisibilityMode>
+				<ShortName></ShortName>
+				<ApplicationItemType></ApplicationItemType>
+				<ApplicationTemplateId>306</ApplicationTemplateId>
+				<UniqueId>2f93e9e0-6491-485e-83bc-db6638dec244</UniqueId>
+				<ComponentCategoryName i:nil="true" />
+				<IsApplicationItemSpecific>false</IsApplicationItemSpecific>
+			</ComponentTemplate>
+			<ComponentTemplate>
+				<ComponentOrder>2</ComponentOrder>
+				<Id>4859</Id>
+				<Name>Veeam Jobs Status</Name>
+				<Settings xmlns:s="http://schemas.microsoft.com/2003/10/Serialization/Arrays">
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>__Disabled</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>False</Value>
+							<ValueType>Boolean</ValueType>
+							<Key>__Disabled</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>StatusRollupType</s:Key>
+						<s:Value>
+							<Required>true</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>Worst</Value>
+							<ValueType>Option</ValueType>
+							<Key>StatusRollupType</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>WrmUrlPrefix</s:Key>
+						<s:Value>
+							<Required>true</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>wsman</Value>
+							<ValueType>String</ValueType>
+							<Key>WrmUrlPrefix</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>ExecutionMode</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>LocalHost</Value>
+							<ValueType>Option</ValueType>
+							<Key>ExecutionMode</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>ImpersonateForLocalMode</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>false</Value>
+							<ValueType>Boolean</ValueType>
+							<Key>ImpersonateForLocalMode</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>WrmUseSSL</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>false</Value>
+							<ValueType>Boolean</ValueType>
+							<Key>WrmUseSSL</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>CountAsDifference</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>false</Value>
+							<ValueType>Boolean</ValueType>
+							<Key>CountAsDifference</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>ScriptBody</s:Key>
+						<s:Value>
+							<Required>true</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>
+$remotehosts="172.15.1.11"
+#in nested remoting use username as an example below
+$username = "VEEAM_SERVER\USERNAME"
+$password = "PASSWORD" | ConvertTo-SecureString -AsPlainText -Force
+
+#Region Define Exite code
+$ExitCode=@{
+    Up=0
+    Down=1
+    Warning=2
+    Critical=3
+    Unknown=4
+}
+
+# Create a PSCredential object using the username and password
+$credential = New-Object System.Management.Automation.PSCredential ($username, $password)
+
+#prepare Deployer configuration
+#set-Item WSMan:\localhost\Client\TrustedHosts -Value $remotehosts -force
+$remotsession=New-PSSession -ComputerName $remotehosts -Credential $credential -Name rtunnel
+
+$temp_veeam = Invoke-Command -Session $remotsession -ScriptBlock {
+    $job_name = Get-VBRJob
+    if ($job_name -ne $null)
+    {
+    # Iterate over each job and output its name, last result, and current state
+    foreach ($job in $job_name) {
+        $jobName = $job.Name
+        $job_Result = (Get-VBRJob -Name $jobName).GetLastResult()
+        $job_State = (Get-VBRJob -Name $jobName).GetLastState()
+        $job_session = (Get-VBRJob -Name $jobName).FindLastSession()
+    
+        # Output the job information
+        [PSCustomObject]@{
+            JobName     = $jobName
+            LastResult  = $job_Result
+            LastState   = $job_State
+            job_session = $job_session
+        }
+    
+    if ( $job_session -eq $null )
+    { $stat3=$stat4=$stat5=$stat6=0; }
+    else
+    {
+    $stat3=$job_session.jobtypestring;
+    $temp_stat4=$job_session.CreationTime;
+    $temp_stat5=$job_session.EndTime;
+    $stat4 = $temp_stat4.tostring("yyyy.MM.dd HH:mm")
+    $stat5 = $temp_stat5.tostring("yyyy.MM.dd HH:mm")
+    }
+    }
+    }
+        else {
+            Write-Host "Message: review powershell code"
+            $status = "Critical"
+            }
+    
+}
+#EOF each
+#counter for jobs number
+$totaljobs = $temp_veeam.Count
+$failedjobs = 0
+$successjobs = 0
+switch ($temp_veeam.LastResult) 
+{ 
+"Success" { $stat1=0 } 
+"None" { $stat1=1 } 
+"Failed" { $stat1=2 } 
+default { $stat1=3 }
+}
+switch ($temp_veeam.LastState) 
+{ 
+"Stopped" { $stat2=0 } 
+"Starting" { $stat2=1 } 
+"Working" { $stat2=2 } 
+"Stopping" { $stat2=3 } 
+"Resuming" { $stat2=4 } 
+"Pausing" { $stat2=5 } 
+default { $stat2=6 }
+}
+foreach ($taskName in ($temp_veeam).JobName ) {
+    if (($temp_veeam).LastResult -eq "failed") {
+        $failedjobs ++
+        Write-host "Message.FailedJobs_name: $taskname" -ForegroundColor red
+        Write-host "Statistic.FailedJobs_name: $stat1"
+        
+        $status = "Warning"
+    }
+else {
+    $successjobs ++
+    Write-host "Message.Successfulljobs_name: $taskname" -ForegroundColor green
+    Write-host "Statistic.Successfulljobs_name: $stat1"
+    $status = "up"
+}
+}
+#total Jobs report
+Write-host "Statistic.TotalJobs: $totaljobs" -ForegroundColor yellow
+Write-host "Statistic.Failedjobs: $failedjobs" -ForegroundColor yellow
+Write-host "Statistic.Successfulljobs: $successjobs" -ForegroundColor yellow
+exit $ExitCode[$Status];</Value>
+							<ValueType>External</ValueType>
+							<Key>ScriptBody</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>WrmPort</s:Key>
+						<s:Value>
+							<Required>true</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>5985</Value>
+							<ValueType>Integer</ValueType>
+							<Key>WrmPort</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>__UserDescription</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value></Value>
+							<ValueType>String</ValueType>
+							<Key>__UserDescription</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>__UserNotes</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value></Value>
+							<ValueType>String</ValueType>
+							<Key>__UserNotes</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>ScriptArguments</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value></Value>
+							<ValueType>String</ValueType>
+							<Key>ScriptArguments</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+					<s:KeyValueOfstringSettingValueyR_SGpLPx>
+						<s:Key>__CredentialSetId</s:Key>
+						<s:Value>
+							<Required>false</Required>
+							<SettingLevel>Template</SettingLevel>
+							<Value>0</Value>
+							<ValueType>String</ValueType>
+							<Key>__CredentialSetId</Key>
+						</s:Value>
+					</s:KeyValueOfstringSettingValueyR_SGpLPx>
+				</Settings>
+				<Type>PowerShell</Type>
+				<Thresholds />
+				<EvidenceType>None</EvidenceType>
+				<CategoryDisplayName></CategoryDisplayName>
+				<ComponentCategoryId i:nil="true" />
+				<DynamicColumnSettings>
+					<DynamicEvidenceColumnSchema>
+						<Cells />
+						<ComponentID>-1</ComponentID>
+						<ComponentTemplateID>4859</ComponentTemplateID>
+						<DataTransform />
+						<DataTransformOverridden>false</DataTransformOverridden>
+						<Disabled>false</Disabled>
+						<ID>3200</ID>
+						<Label>Number of  Successful jobs</Label>
+						<LabelOverridden>false</LabelOverridden>
+						<Name>Successfulljobs</Name>
+						<ParentID>-1</ParentID>
+						<Threshold>
+							<AreHigherValuesBetter>false</AreHigherValuesBetter>
+							<BaselineApplyError></BaselineApplyError>
+							<ComputeBaseline>true</ComputeBaseline>
+							<CriticalFormula></CriticalFormula>
+							<CriticalLevel>1.7976931348623157E+308</CriticalLevel>
+							<CriticalPolls>1</CriticalPolls>
+							<CriticalPollsInterval>1</CriticalPollsInterval>
+							<IsForParentComponent>false</IsForParentComponent>
+							<IsForTemplate>false</IsForTemplate>
+							<MaxValue>100</MaxValue>
+							<Name></Name>
+							<WarnLevel>1.7976931348623157E+308</WarnLevel>
+							<WarningFormula></WarningFormula>
+							<WarningPolls>1</WarningPolls>
+							<WarningPollsInterval>1</WarningPollsInterval>
+							<ThresholdOperator>Greater</ThresholdOperator>
+						</Threshold>
+						<ThresholdOverridden>false</ThresholdOverridden>
+						<Type>String</Type>
+					</DynamicEvidenceColumnSchema>
+					<DynamicEvidenceColumnSchema>
+						<Cells />
+						<ComponentID>-1</ComponentID>
+						<ComponentTemplateID>4859</ComponentTemplateID>
+						<DataTransform>
+							<CommonFormulaOptions>0</CommonFormulaOptions>
+							<TransformExpression></TransformExpression>
+						</DataTransform>
+						<DataTransformOverridden>false</DataTransformOverridden>
+						<Disabled>false</Disabled>
+						<ID>3201</ID>
+						<Label>Number of  Successful jobs</Label>
+						<LabelOverridden>false</LabelOverridden>
+						<Name>Successfulljobs</Name>
+						<ParentID>-1</ParentID>
+						<Threshold>
+							<AreHigherValuesBetter>false</AreHigherValuesBetter>
+							<BaselineApplyError></BaselineApplyError>
+							<ComputeBaseline>true</ComputeBaseline>
+							<CriticalFormula></CriticalFormula>
+							<CriticalLevel>0</CriticalLevel>
+							<CriticalPolls>1</CriticalPolls>
+							<CriticalPollsInterval>1</CriticalPollsInterval>
+							<IsForParentComponent>false</IsForParentComponent>
+							<IsForTemplate>false</IsForTemplate>
+							<MaxValue>100</MaxValue>
+							<Name></Name>
+							<WarnLevel>-1.7976931348623157E+308</WarnLevel>
+							<WarningFormula></WarningFormula>
+							<WarningPolls>1</WarningPolls>
+							<WarningPollsInterval>1</WarningPollsInterval>
+							<ThresholdOperator>LessOrEqual</ThresholdOperator>
+						</Threshold>
+						<ThresholdOverridden>false</ThresholdOverridden>
+						<Type>Numeric</Type>
+					</DynamicEvidenceColumnSchema>
+					<DynamicEvidenceColumnSchema>
+						<Cells />
+						<ComponentID>-1</ComponentID>
+						<ComponentTemplateID>4859</ComponentTemplateID>
+						<DataTransform>
+							<CommonFormulaOptions>0</CommonFormulaOptions>
+							<TransformExpression></TransformExpression>
+						</DataTransform>
+						<DataTransformOverridden>false</DataTransformOverridden>
+						<Disabled>false</Disabled>
+						<ID>3202</ID>
+						<Label>Number of Total Jobs</Label>
+						<LabelOverridden>false</LabelOverridden>
+						<Name>TotalJobs</Name>
+						<ParentID>-1</ParentID>
+						<Threshold>
+							<AreHigherValuesBetter>false</AreHigherValuesBetter>
+							<BaselineApplyError></BaselineApplyError>
+							<ComputeBaseline>true</ComputeBaseline>
+							<CriticalFormula></CriticalFormula>
+							<CriticalLevel>1.7976931348623157E+308</CriticalLevel>
+							<CriticalPolls>1</CriticalPolls>
+							<CriticalPollsInterval>1</CriticalPollsInterval>
+							<IsForParentComponent>false</IsForParentComponent>
+							<IsForTemplate>false</IsForTemplate>
+							<MaxValue>100</MaxValue>
+							<Name></Name>
+							<WarnLevel>1.7976931348623157E+308</WarnLevel>
+							<WarningFormula></WarningFormula>
+							<WarningPolls>1</WarningPolls>
+							<WarningPollsInterval>1</WarningPollsInterval>
+							<ThresholdOperator>Greater</ThresholdOperator>
+						</Threshold>
+						<ThresholdOverridden>false</ThresholdOverridden>
+						<Type>Numeric</Type>
+					</DynamicEvidenceColumnSchema>
+					<DynamicEvidenceColumnSchema>
+						<Cells />
+						<ComponentID>-1</ComponentID>
+						<ComponentTemplateID>4859</ComponentTemplateID>
+						<DataTransform>
+							<CommonFormulaOptions>0</CommonFormulaOptions>
+							<TransformExpression></TransformExpression>
+						</DataTransform>
+						<DataTransformOverridden>false</DataTransformOverridden>
+						<Disabled>false</Disabled>
+						<ID>3203</ID>
+						<Label>Number of Failed jobs</Label>
+						<LabelOverridden>false</LabelOverridden>
+						<Name>Failedjobs</Name>
+						<ParentID>-1</ParentID>
+						<Threshold>
+							<AreHigherValuesBetter>false</AreHigherValuesBetter>
+							<BaselineApplyError></BaselineApplyError>
+							<ComputeBaseline>true</ComputeBaseline>
+							<CriticalFormula></CriticalFormula>
+							<CriticalLevel>1.7976931348623157E+308</CriticalLevel>
+							<CriticalPolls>1</CriticalPolls>
+							<CriticalPollsInterval>1</CriticalPollsInterval>
+							<IsForParentComponent>false</IsForParentComponent>
+							<IsForTemplate>false</IsForTemplate>
+							<MaxValue>100</MaxValue>
+							<Name></Name>
+							<WarnLevel>1</WarnLevel>
+							<WarningFormula></WarningFormula>
+							<WarningPolls>1</WarningPolls>
+							<WarningPollsInterval>1</WarningPollsInterval>
+							<ThresholdOperator>Greater</ThresholdOperator>
+						</Threshold>
+						<ThresholdOverridden>false</ThresholdOverridden>
+						<Type>Numeric</Type>
+					</DynamicEvidenceColumnSchema>
+					<DynamicEvidenceColumnSchema>
+						<Cells />
+						<ComponentID>-1</ComponentID>
+						<ComponentTemplateID>4859</ComponentTemplateID>
+						<DataTransform />
+						<DataTransformOverridden>false</DataTransformOverridden>
+						<Disabled>false</Disabled>
+						<ID>3204</ID>
+						<Label>Name of Successful jobs</Label>
+						<LabelOverridden>false</LabelOverridden>
+						<Name>Successfulljobs_name</Name>
+						<ParentID>-1</ParentID>
+						<Threshold>
+							<AreHigherValuesBetter>false</AreHigherValuesBetter>
+							<BaselineApplyError></BaselineApplyError>
+							<ComputeBaseline>true</ComputeBaseline>
+							<CriticalFormula></CriticalFormula>
+							<CriticalLevel>1.7976931348623157E+308</CriticalLevel>
+							<CriticalPolls>1</CriticalPolls>
+							<CriticalPollsInterval>1</CriticalPollsInterval>
+							<IsForParentComponent>false</IsForParentComponent>
+							<IsForTemplate>false</IsForTemplate>
+							<MaxValue>100</MaxValue>
+							<Name></Name>
+							<WarnLevel>1.7976931348623157E+308</WarnLevel>
+							<WarningFormula></WarningFormula>
+							<WarningPolls>1</WarningPolls>
+							<WarningPollsInterval>1</WarningPollsInterval>
+							<ThresholdOperator>Greater</ThresholdOperator>
+						</Threshold>
+						<ThresholdOverridden>false</ThresholdOverridden>
+						<Type>String</Type>
+					</DynamicEvidenceColumnSchema>
+					<DynamicEvidenceColumnSchema>
+						<Cells />
+						<ComponentID>-1</ComponentID>
+						<ComponentTemplateID>4859</ComponentTemplateID>
+						<DataTransform>
+							<CommonFormulaOptions>0</CommonFormulaOptions>
+							<TransformExpression></TransformExpression>
+						</DataTransform>
+						<DataTransformOverridden>false</DataTransformOverridden>
+						<Disabled>false</Disabled>
+						<ID>3205</ID>
+						<Label>Name of Successful jobs</Label>
+						<LabelOverridden>false</LabelOverridden>
+						<Name>Successfulljobs_name</Name>
+						<ParentID>-1</ParentID>
+						<Threshold>
+							<AreHigherValuesBetter>false</AreHigherValuesBetter>
+							<BaselineApplyError></BaselineApplyError>
+							<ComputeBaseline>true</ComputeBaseline>
+							<CriticalFormula></CriticalFormula>
+							<CriticalLevel>1.7976931348623157E+308</CriticalLevel>
+							<CriticalPolls>1</CriticalPolls>
+							<CriticalPollsInterval>1</CriticalPollsInterval>
+							<IsForParentComponent>false</IsForParentComponent>
+							<IsForTemplate>false</IsForTemplate>
+							<MaxValue>100</MaxValue>
+							<Name></Name>
+							<WarnLevel>1.7976931348623157E+308</WarnLevel>
+							<WarningFormula></WarningFormula>
+							<WarningPolls>1</WarningPolls>
+							<WarningPollsInterval>1</WarningPollsInterval>
+							<ThresholdOperator>Greater</ThresholdOperator>
+						</Threshold>
+						<ThresholdOverridden>false</ThresholdOverridden>
+						<Type>Numeric</Type>
+					</DynamicEvidenceColumnSchema>
+				</DynamicColumnSettings>
+				<VisibilityMode>Visible</VisibilityMode>
+				<ShortName></ShortName>
+				<ApplicationItemType></ApplicationItemType>
+				<ApplicationTemplateId>306</ApplicationTemplateId>
+				<UniqueId>6410aa0b-8b1a-4497-94ed-b9b7d4650c70</UniqueId>
+				<ComponentCategoryName i:nil="true" />
+				<IsApplicationItemSpecific>false</IsApplicationItemSpecific>
+			</ComponentTemplate>
+		</ComponentTemplates>
+		<DeletedComponentTemplates />
+		<Id>306</Id>
+		<Name>NOC-Veeambackup</Name>
+		<IsMockTemplate>false</IsMockTemplate>
+		<Description>checking veeam service and backup jobs</Description>
+		<Tags>
+			<TagInfo>
+				<Name>powershell-remoting</Name>
+				<TemplateID>306</TemplateID>
+			</TagInfo>
+			<TagInfo>
+				<Name>veeam-12</Name>
+				<TemplateID>306</TemplateID>
+			</TagInfo>
+		</Tags>
+		<Created>2024-11-19T17:57:31.85Z</Created>
+		<LastModified>2024-11-29T12:18:29.037Z</LastModified>
+		<CustomApplicationType i:nil="true" />
+		<Version>1.0</Version>
+		<ViewID>0</ViewID>
+		<ViewXml i:nil="true" />
+		<ModuleVersion xmlns:d="http://schemas.datacontract.org/2004/07/System">
+			<d:_Build>0</d:_Build>
+			<d:_Major>2024</d:_Major>
+			<d:_Minor>2</d:_Minor>
+			<d:_Revision>0</d:_Revision>
+		</ModuleVersion>
+		<UniqueId>53d6ce72-eef1-46ed-a3a4-b580a3a14c17</UniqueId>
+	</ApplicationTemplate>
+</ArrayOfApplicationTemplate>
